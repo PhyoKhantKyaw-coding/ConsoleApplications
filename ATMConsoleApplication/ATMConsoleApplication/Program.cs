@@ -3,7 +3,8 @@
 using ATMConsoleApplication;
 
 ATMService atmService = new ATMService();
-List<User> users = atmService.AddUsers();
+
+List<User> users = atmService.GetAllUsers();
 
 Console.WriteLine("----- Welcome to ATM Console Application -----");
 login();
@@ -16,12 +17,12 @@ void login()
 
         while (loggedInUser == null && attempts < 3)
         {
-            Console.Write("\nEnter UserID: ");
-            string userId = Console.ReadLine();
+            Console.Write("\nEnter UserName: ");
+            string userName = Console.ReadLine();
             Console.Write("Enter Password: ");
             string password = Console.ReadLine();
 
-            loggedInUser = users.Find(u => u.UserID == userId && u.Password == password);
+            loggedInUser = users.Find(u => u.UserName == userName && u.Password == password);
 
             if (loggedInUser == null)
             {
@@ -56,9 +57,10 @@ void ShowMenu(ATMService atmService, User user)
         Console.WriteLine("2. Deposit");
         Console.WriteLine("3. Check Balance");
         Console.WriteLine("4. Logout");
-        Console.WriteLine("5. End Program");
+        Console.WriteLine("5. History");
+        Console.WriteLine("6. End Program");
         Console.Write("Choose an option (1-5): ");
-        string option = Console.ReadLine();
+        string option = Console.ReadLine()!;
 
         switch (option)
         {
@@ -73,7 +75,7 @@ void ShowMenu(ATMService atmService, User user)
                 break;
             case "4":
                 Console.WriteLine("\nDo you want to logout ! y/n:");
-                string result = Console.ReadLine();
+                string result = Console.ReadLine()!;
                 if (result == "n") 
                 {
                     break; 
@@ -82,7 +84,7 @@ void ShowMenu(ATMService atmService, User user)
                 {
                     Console.WriteLine("loging out...");
                     Console.WriteLine("\nDo you want to login in again ! y/n:");
-                    string result2 = Console.ReadLine();
+                    string result2 = Console.ReadLine()!;
                     if (result2 == "n")
                     {
                         Console.WriteLine("Ending program...");
@@ -94,8 +96,27 @@ void ShowMenu(ATMService atmService, User user)
                         return;
                     }
                     return;
-                }            
+                }
             case "5":
+                List<Transaction> trans = atmService.GetTransactionHistory(user);
+                Console.WriteLine("Transaction History:\n");
+                Console.WriteLine("{0,-5} {1,-20} {2,-10} {3,-20} {4,-15}",
+                    "No", "UserName", "Amount", "Date", "Type");
+                Console.WriteLine(new string('-', 70));
+
+                User user1 = atmService.GetUserById(user.UserID);
+                int transactionNo = 1;
+                foreach (Transaction t in trans)
+                {
+                    Console.WriteLine("{0,-5} {1,-20} {2,-10:C} {3,-20} {4,-15} ",
+                        transactionNo++, 
+                        user1.UserName,
+                        t.Amount,
+                        t.TransactionDate.ToString("yyyy-MM-dd HH:mm"),
+                        t.TransactionType);                        
+                }
+                break;
+            case "6":
                 Console.WriteLine("Ending program...");
                 Environment.Exit(0);
                 break;
