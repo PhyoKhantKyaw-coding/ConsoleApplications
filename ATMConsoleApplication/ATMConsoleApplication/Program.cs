@@ -59,7 +59,7 @@ void ShowMenu(ATMService atmService, User user)
         Console.WriteLine("4. Logout");
         Console.WriteLine("5. History");
         Console.WriteLine("6. End Program");
-        Console.Write("Choose an option (1-5): ");
+        Console.Write("Choose an option (1-6): ");
         string option = Console.ReadLine()!;
 
         switch (option)
