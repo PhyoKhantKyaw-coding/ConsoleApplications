@@ -8,13 +8,14 @@ namespace RetailManagementConsoleApplication;
 
 public class RetailService
 {
-    List<Product> products = new List<Product>();
-    List<Sale> salesReport = new List<Sale>();
+    private readonly AppDbContext _db = new AppDbContext();
+    //List<Product> prods = new List<Product>();
+    //List<Sale> sales = new List<Sale>();
 
     public void Retail()
     {
 
-        SeedProducts();
+        //SeedProducts();
         while (true)
         {
             Console.WriteLine("\n--- Retail Management Console ---");
@@ -84,8 +85,25 @@ public class RetailService
         decimal price = GetValidatedDecimal("Enter price: ");
         decimal cost = GetValidatedDecimal("Enter cost: ");
 
-        int newId = products.Count + 1;
-        products.Add(new Product { Id = newId, Name = name, Stock = stock, Price = price, Cost = cost });
+        int newId = _db.Products.Any() ? _db.Products.Max(p => p.Id) + 1 : 1; 
+        Product product = new Product
+        {
+            Id = newId,
+            Name = name,
+            Stock = stock,
+            Price = price,
+            Cost = cost
+        };
+        _db.Products.Add(product);
+        var result = _db.SaveChanges();
+        if (result > 0)
+        {
+            Console.WriteLine("Product added successfully.");
+        }
+        else
+        {
+            Console.WriteLine("Failed to add product.");
+        }
 
         Console.WriteLine("✅ Product added successfully!\n");
     }
@@ -93,7 +111,7 @@ public class RetailService
     {
         Console.WriteLine("=== Edit Product ===");
         int editId = GetValidatedInt("Enter product ID to edit: ");
-        var prod = products.FirstOrDefault(p => p.Id == editId);
+        var prod = _db.Products.FirstOrDefault(p => p.Id == editId);
 
         if (prod == null)
         {
@@ -114,6 +132,16 @@ public class RetailService
 
         decimal newCost = GetValidatedDecimal($"New cost (or press Enter to keep current: {prod.Cost:C}): ", allowSkip: true);
         if (newCost >= 0) prod.Cost = newCost;
+        _db.Entry(prod).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+        var result = _db.SaveChanges();
+        if (result > 0)
+        {
+            Console.WriteLine("Product updated successfully.");
+        }
+        else
+        {
+            Console.WriteLine("Failed to update product.");
+        }
 
         Console.WriteLine(" Product updated successfully!\n");
     }
@@ -164,18 +192,18 @@ public class RetailService
             Console.WriteLine("Invalid input. Please enter a valid non-negative decimal.");
         }
     }
-    private void SeedProducts()
-    {
-        products.Add(new Product { Id = 1, Name = "Pen", Stock = 100, Price = 1.50m, Cost = 1.00m });
-        products.Add(new Product { Id = 2, Name = "Notebook", Stock = 50, Price = 3.00m, Cost = 2.00m });
-    }
+    //private void SeedProducts()
+    //{
+    //    prods.Add(new Product { Id = 1, Name = "Pen", Stock = 100, Price = 1.50m, Cost = 1.00m });
+    //    prods.Add(new Product { Id = 2, Name = "Notebook", Stock = 50, Price = 3.00m, Cost = 2.00m });
+    //}
     private void Display()
     {
         Console.WriteLine("{0,-12} | {1,-20} | {2,-14} | {3,-12} | {4,-12}",
             "Product ID", "Product Name", "Stock", "Price Per Item","Profit Per Item");
         Console.WriteLine(new string('-', 70));
-
-        foreach (var product in products)
+        var prods = _db.Products.ToList();
+        foreach (var product in prods)
         {
             Console.WriteLine("{0,-12} | {1,-20} | {2,-14} | {3,-12:C} | {4,-12}",
                 product.Id,product.Name, product.Stock, product.Price,product.Profit);
@@ -193,7 +221,7 @@ public class RetailService
             if (input.ToLower() != "done")
             {
                 int id = int.Parse(input);
-                var product = products.FirstOrDefault(p => p.Id == id);
+                var product = _db.Products.FirstOrDefault(p => p.Id == id);
                 if (product != null)
                 {
                     Console.Write("Enter quantity: ");
@@ -227,17 +255,39 @@ public class RetailService
         Console.Write("Confirm payment? (yes/no): ");
         if (Console.ReadLine().ToLower() == "yes")
         {
+            var result = 0;
             foreach (var item in cart)
             {
                 item.Product.Stock -= item.Quantity;
-                salesReport.Add(new Sale
+                Sale sale = new Sale
                 {
+                    Id = Guid.NewGuid(),
                     ProductId = item.Product.Id,
                     ProductName = item.Product.Name,
                     Quantity = item.Quantity,
                     Price = item.Product.Price,
                     Profit = (item.Product.Price - item.Product.Cost) * item.Quantity
-                });
+                };
+                _db.Sales.Add(sale);
+                result = _db.SaveChanges();
+
+                //salesReport.Add(new Sale
+                //{
+                //    Id = Guid.NewGuid(),
+                //    ProductId = item.Product.Id,
+                //    ProductName = item.Product.Name,
+                //    Quantity = item.Quantity,
+                //    Price = item.Product.Price,
+                //    Profit = (item.Product.Price - item.Product.Cost) * item.Quantity
+                //});
+            }
+            if (result > 0)
+            {
+                Console.WriteLine("Transaction saved successfully.");
+            }
+            else
+            {
+                Console.WriteLine("Transaction failed to save.");
             }
             Console.WriteLine("Payment completed. Stock updated.");
         }
@@ -249,8 +299,9 @@ public class RetailService
     private void ManagerMenu()
     {
         Console.WriteLine("\n--- Manager Menu ---\n");
+        var sales = _db.Sales.ToList();
 
-        if (!salesReport.Any())
+        if (!sales.Any())
         {
             Console.WriteLine("No sales have been made yet.");
             return;
@@ -259,16 +310,15 @@ public class RetailService
         Console.WriteLine("{0,-12} | {1,-20} | {2,-14} | {3,-12} | {4,-10}",
             "Product ID", "Product Name", "Quantity Sold", "Price Per Item", "Profit");
         Console.WriteLine(new string('-', 70));
-
-        foreach (var sale in salesReport)
+        foreach (var sale in sales)
         {
             Console.WriteLine("{0,-12} | {1,-20} | {2,-14} | {3,-12:C} | {4,-10:C}",
                 sale.ProductId, sale.ProductName, sale.Quantity, sale.Price, sale.Profit);
         }
 
         Console.WriteLine(new string('-', 70));
-        decimal totalRevenue = salesReport.Sum(s => s.Price * s.Quantity);
-        decimal totalProfit = salesReport.Sum(s => s.Profit);
+        decimal totalRevenue = sales.Sum(s => s.Price * s.Quantity);
+        decimal totalProfit = sales.Sum(s => s.Profit);
 
         Console.WriteLine("{0,49} | {1,-12:C} | {2,-10:C}", "TOTAL:", totalRevenue, totalProfit);
         Console.WriteLine();
